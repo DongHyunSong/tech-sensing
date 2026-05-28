@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project_name }}</title>
+    <!-- CSS 연결 -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- 크론 가동용 로딩 오버레이 -->
+    <div id="loaderWrapper" class="loader-wrapper">
+        <div class="loader"></div>
+        <div id="loaderText" class="loader-text">분석을 진행하고 있습니다...</div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div class="container">
+        
+        {% if not authenticated %}
+        <!-- [1] 비로그인 상태: 로그인 카드 렌더링 -->
+        <div class="login-wrapper">
+            <div class="card login-card" id="loginCard">
+                <div class="login-logo">PhilTVTech</div>
+                <p class="subtitle">삼성전자 TV사업부 필리핀 테크 센싱 시스템</p>
+                
+                {% if error %}
+                <div class="error-message">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                <form action="/login" method="post">
+                    <div class="form-group">
+                        <label for="password">액세스 비밀번호</label>
+                        <input type="password" id="password" name="password" class="form-input" placeholder="비밀번호를 입력하세요" required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">대시보드 접속</button>
+                </form>
+            </div>
+        </div>
+        
+        {% else %}
+        <!-- [2] 로그인 완료 상태: 대시보드 메인 렌더링 -->
+        <header>
+            <div class="logo-section">
+                <h1>{{ project_name }}</h1>
+                <p>삼성전자 TV사업부 필리핀 지역동향 & 기술 센싱 대시보드</p>
+            </div>
+            
+            <div class="user-controls">
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="password" id="cronTokenInput" class="form-input" placeholder="크론 비밀토큰 입력" style="width: 180px; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                </div>
+                <button id="triggerReportBtn" class="btn btn-success" title="매일 아침 10시 보고서 발송을 즉시 수행합니다.">
+                    ⚡ 리포트 즉시 발송
+                </button>
+                <a href="/logout" class="btn btn-secondary">로그아웃</a>
+            </div>
+        </header>
+
+        <!-- 통계 요약 카드 영역 -->
+        <div class="stats-grid">
+            <div class="card stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <div class="stat-label">등록 구독자 수</div>
+                    <div class="stat-value">{{ subscribers_count }} 명</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-info">
+                    <div class="stat-label">최근 7일 수집 데이터</div>
+                    <div class="stat-value">{{ notes|length }} 건</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-info">
+                    <div class="stat-label">총 발행 리포트 이력</div>
+                    <div class="stat-value">{{ reports|length }} 건</div>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-icon">📍</div>
+                <div class="stat-info">
+                    <div class="stat-label">센싱 타겟 국가</div>
+                    <div class="stat-value">필리핀 (PH)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인 콘텐츠 레이아웃 (2열 구성) -->
+        <div class="dashboard-grid">
+            
+            <!-- 왼쪽 열: 현장 센싱 노트 직접 작성 폼 -->
+            <div class="card">
+                <div class="card-title-bar">
+                    <h2>📥 현장 센싱 정보 등록</h2>
+                </div>
+                <form action="/api/notes" method="post">
+                    <div class="form-group">
+                        <label for="author">수집 주체 / 작성자</label>
+                        <input type="text" id="author" name="author" class="form-input" value="주재원(Web)" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="source">센싱 소스 카테고리</label>
+                        <select id="source" name="source" class="form-input" style="background: rgba(15, 23, 42, 0.9); cursor: pointer;">
+                            <option value="retail_store">🏬 로컬 오프라인 매장 실사 (SM, Abenson 등)</option>
+                            <option value="local_ott">🌐 로컬 미디어/OTT 동향 (iWantTFC, Vivamax 등)</option>
+                            <option value="community_discussion">💬 현지 커뮤니티 토론 & 실사용자 리뷰</option>
+                            <option value="competitor_promo">🏷️ 경쟁사 프로모션 및 마케팅 전략</option>
+                            <option value="web_dashboard">💻 기타 지역 동향 / S/W 필드 노트</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="text">센싱 상세 내용</label>
+                        <textarea id="text" name="text" class="form-input" rows="8" placeholder="현장에서 취득한 정보(가격 정보, 경쟁사 마케팅 번들 구성, 버퍼링 이슈, 자막 싱크 오류 등 현지 특화 동향)를 작성해 주세요. 
+
+작성된 글은 매일 아침 10시 리포트 생성에 기여합니다." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; font-weight: 600;">
+                        센싱 데이터베이스 등록
+                    </button>
+                </form>
+            </div>
+
+            <!-- 오른쪽 열: 최근 수집된 데이터 리스트 -->
+            <div class="card" style="display: flex; flex-direction: column;">
+                <div class="card-title-bar">
+                    <h2>📝 최근 7일간 수집된 센싱 원본 데이터</h2>
+                    <span class="note-badge">{{ notes|length }} 건</span>
+                </div>
+                
+                <div class="note-list">
+                    {% if notes %}
+                        {% for note in notes %}
+                        <div class="note-item">
+                            <div class="note-header">
+                                <span class="note-author">👤 {{ note.author }}</span>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <span class="note-badge {{ note.source }}">{{ note.source }}</span>
+                                    <span>{{ note.timestamp[:16].replace('T', ' ') }}</span>
+                                </div>
+                            </div>
+                            <div class="note-text">{{ note.text }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">📂</div>
+                            <p>최근 7일간 등록된 현장 정보가 없습니다.</p>
+                            <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-muted);">
+                                왼쪽 양식을 통해 등록하거나 연결된 @PhilTVTech_bot 채팅방에 텍스트 또는 이미지를 보내주세요.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 하단 섹션: 기 발행된 인사이트 리포트 로그 -->
+        <div class="card">
+            <div class="card-title-bar">
+                <h2>📊 전송된 인사이트 리포트 히스토리</h2>
+                <span class="note-badge">{{ reports|length }} 개 리포트</span>
+            </div>
+            
+            <div class="report-row">
+                {% if reports %}
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
+                        {% for report in reports %}
+                        <div class="report-item" data-id="{{ loop.index }}">
+                            <div class="report-meta">
+                                <span class="report-date">{{ report.timestamp[:10] if report.timestamp else '날짜 없음' }}</span>
+                                <span>발송 완료</span>
+                            </div>
+                            <div class="report-snippet">
+                                {{ report.report_text[:140] }}...
+                            </div>
+                            <!-- 원본 보관을 위해 숨겨둔 필드 -->
+                            <div class="report-full-content" style="display: none;">
+                                {{ report.report_text | safe }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state" style="padding: 4rem 1rem;">
+                        <div class="empty-icon">📡</div>
+                        <p>아직 발행 및 발송된 리포트 이력이 없습니다.</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--text-muted);">
+                            아침 10시가 되거나 우측 상단 '리포트 즉시 발송'을 눌러 첫 리포트를 생성해 보세요.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- 리포트 확인용 모달창 -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">인사이트 리포트</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 리포트 본문 렌더링 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCloseBtn">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS 연결 -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
